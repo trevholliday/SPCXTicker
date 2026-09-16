@@ -27,15 +27,20 @@ enum PanelRenderer {
 
         switch state {
         case .quote(let quote):
-            let trend = quote.isUp ? Palette.up : Palette.down
+            let isOpen = quote.isMarketOpen()
+            let trend = quote.isUp ? (isOpen ? Palette.up : Palette.upDim) : (isOpen ? Palette.down : Palette.downDim)
             grid.drawText(fit(quote.percentText, fallback: quote.compactPercentText), x: textX, y: 12, color: trend)
             grid.drawText(fit(quote.priceText, fallback: quote.compactPriceText), x: textX, y: 22, color: trend)
             if showsValueRow, shares > 0 {
-                grid.drawText(fit(candidates: quote.valueTexts(shares: shares)), x: textX, y: 32, color: Palette.value)
+                grid.drawText(fit(candidates: quote.valueTexts(shares: shares)), x: textX, y: 32, color: isOpen ? Palette.value : Palette.valueDim)
             }
-            drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
-            if let pollTrend = quote.pollTrend {
-                drawPollArrow(in: &grid, trend: pollTrend)
+            if isOpen {
+                drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
+                if let pollTrend = quote.pollTrend {
+                    drawPollArrow(in: &grid, trend: pollTrend)
+                }
+            } else {
+                drawRocket(in: &grid, angle: .zero, color: Palette.idle, showsFlame: false)
             }
         case .loading:
             grid.drawText("LOADING", x: textX, y: 12, color: Palette.idle)
@@ -66,6 +71,9 @@ enum Palette {
     static let down = Color(red: 1.0, green: 0.2, blue: 0.2)
     static let flame = Color(red: 1.0, green: 0.6, blue: 0.1)
     static let idle = Color(white: 0.6)
+    static let upDim = Color(red: 0.12, green: 0.55, blue: 0.2)
+    static let downDim = Color(red: 0.6, green: 0.13, blue: 0.13)
+    static let valueDim = Color(red: 0.2, green: 0.45, blue: 0.55)
     static let value = Color(red: 0.35, green: 0.85, blue: 1.0)
     static let off = Color(white: 0.09)
 }
@@ -102,11 +110,13 @@ private extension PanelRenderer {
         }
     }
 
-    static func drawRocket(in grid: inout DotGrid, angle: Angle, color: Color) {
+    static func drawRocket(in grid: inout DotGrid, angle: Angle, color: Color, showsFlame: Bool = true) {
         let masks = RocketRasterizer.masks(width: rocketWidth, height: rocketHeight, angle: angle)
         let x = width - rocketWidth - 2
         let y = (grid.height - rocketHeight) / 2
         grid.drawMask(masks.body, width: rocketWidth, x: x, y: y, color: color)
-        grid.drawMask(masks.flame, width: rocketWidth, x: x, y: y, color: Palette.flame)
+        if showsFlame {
+            grid.drawMask(masks.flame, width: rocketWidth, x: x, y: y, color: Palette.flame)
+        }
     }
 }

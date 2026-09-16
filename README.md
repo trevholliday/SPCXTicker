@@ -9,7 +9,7 @@ A floating, always-on-top macOS widget that shows stock prices on an LED dot-mat
 - Any tickers you like — right-click the panel and choose **Edit Tickers…**
 - Optionally enter how many shares you hold per ticker to get a market value row under the price
 - With two or more tickers, panels dwell for 15 seconds and then scroll right-to-left into the next one
-- Polls Yahoo Finance every 15 seconds; a small arrow in the bottom-right corner shows whether the price ticked up (green) or down (red) since the previous poll
+- Polls Yahoo Finance every 15 seconds while the market is open; when it's closed the rocket parks upright in gray, the colors dim to show the closing figures, and polling pauses until the next session opens. During the session a small arrow in the bottom-right corner shows whether the price ticked up (green) or down (red) since the previous poll
 
 ## Install
 

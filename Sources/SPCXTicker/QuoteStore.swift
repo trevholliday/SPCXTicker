@@ -32,11 +32,16 @@ final class QuoteStore {
         session = URLSession(configuration: configuration)
     }
 
-    /// Fetches immediately, then keeps refreshing until the task is cancelled.
+    /// True when any tracked symbol's exchange is in its regular session.
+    var isMarketOpen: Bool {
+        quotes.isEmpty || quotes.values.contains { $0.isMarketOpen() }
+    }
+
+    /// Fetches immediately, then refreshes on the poll interval while the market is open and sleeps until the next session start when it is closed.
     func start() async {
         while !Task.isCancelled {
             await refresh()
-            try? await Task.sleep(for: refreshInterval)
+            try? await Task.sleep(for: nextRefreshDelay())
         }
     }
 
@@ -80,6 +85,16 @@ private extension QuoteStore {
                     let regularMarketPrice: Double
                     let chartPreviousClose: Double?
                     let previousClose: Double?
+                    let currentTradingPeriod: TradingPeriods?
+                }
+
+                struct TradingPeriods: Decodable {
+                    struct Period: Decodable {
+                        let start: TimeInterval
+                        let end: TimeInterval
+                    }
+
+                    let regular: Period?
                 }
 
                 let meta: Meta
@@ -101,6 +116,15 @@ private extension QuoteStore {
 // MARK: - Private
 
 private extension QuoteStore {
+    func nextRefreshDelay() -> Duration {
+        guard !isMarketOpen else { return refreshInterval }
+        let now = Date()
+        let nextOpen = quotes.values.compactMap { $0.nextSessionStart(after: now) }.min()
+        guard let nextOpen else { return refreshInterval }
+        let seconds = min(max(nextOpen.timeIntervalSince(now), 1), 24 * 60 * 60)
+        return .seconds(seconds)
+    }
+
     nonisolated static func fetch(symbol: String, session: URLSession) async throws -> Quote {
         var components = URLComponents(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)")
         components?.queryItems = [
@@ -118,6 +142,11 @@ private extension QuoteStore {
         let decoded = try JSONDecoder().decode(ChartResponse.self, from: data)
         guard let meta = decoded.chart.result?.first?.meta else { throw FetchError.emptyResult }
         let previous = meta.chartPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice
-        return Quote(symbol: symbol, price: meta.regularMarketPrice, previousClose: previous)
+        var quote = Quote(symbol: symbol, price: meta.regularMarketPrice, previousClose: previous)
+        if let regular = meta.currentTradingPeriod?.regular {
+            quote.sessionStart = Date(timeIntervalSince1970: regular.start)
+            quote.sessionEnd = Date(timeIntervalSince1970: regular.end)
+        }
+        return quote
     }
 }

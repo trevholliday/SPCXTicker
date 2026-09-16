@@ -13,9 +13,26 @@ struct Quote: Equatable {
     let symbol: String
     let price: Double
     let previousClose: Double
+    var sessionStart: Date?
+    var sessionEnd: Date?
     var lastPollPrice: Double?
 
     var change: Double { price - previousClose }
+
+    /// True while the exchange's regular trading session is in progress.
+    func isMarketOpen(at date: Date = Date()) -> Bool {
+        guard let sessionStart, let sessionEnd else { return true }
+        return date >= sessionStart && date < sessionEnd
+    }
+
+    /// The next regular session start after `date`, assuming the same time each day.
+    func nextSessionStart(after date: Date = Date()) -> Date? {
+        guard var next = sessionStart else { return nil }
+        while next <= date {
+            next = next.addingTimeInterval(24 * 60 * 60)
+        }
+        return next
+    }
 
     var pollTrend: PollTrend? {
         guard let lastPollPrice, lastPollPrice != price else { return nil }
