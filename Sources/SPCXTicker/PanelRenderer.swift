@@ -24,6 +24,9 @@ enum PanelRenderer {
             grid.drawText(fit(quote.percentText, fallback: quote.compactPercentText), x: textX, y: 12, color: trend)
             grid.drawText(fit(quote.priceText, fallback: quote.compactPriceText), x: textX, y: 22, color: trend)
             drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
+            if let pollTrend = quote.pollTrend {
+                drawPollArrow(in: &grid, trend: pollTrend)
+            }
         case .loading:
             grid.drawText("LOADING", x: textX, y: 12, color: Palette.idle)
             drawRocket(in: &grid, angle: .zero, color: Palette.idle)
@@ -69,6 +72,20 @@ private extension PanelRenderer {
         if let fallback, DotFont.width(of: fallback) <= textColumns { return fallback }
         let maxCharacters = (textColumns + 1) / DotFont.advance
         return String((fallback ?? text).prefix(maxCharacters))
+    }
+
+    static let upArrow: [UInt8] = [0b00100, 0b01110, 0b11111, 0b00100, 0b00100]
+
+    static func drawPollArrow(in grid: inout DotGrid, trend: Quote.PollTrend) {
+        let rows = trend == .up ? upArrow : upArrow.reversed()
+        let color = trend == .up ? Palette.up : Palette.down
+        let x = width - 5 - 1
+        let y = height - rows.count - 1
+        for (row, mask) in rows.enumerated() {
+            for column in 0..<5 where mask & (0b10000 >> column) != 0 {
+                grid.set(x: x + column, y: y + row, color: color)
+            }
+        }
     }
 
     static func drawRocket(in grid: inout DotGrid, angle: Angle, color: Color) {

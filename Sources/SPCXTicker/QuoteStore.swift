@@ -59,7 +59,7 @@ final class QuoteStore {
             }
             for await (symbol, quote) in group where symbols.contains(symbol) {
                 if let quote {
-                    quotes[symbol] = quote
+                    quotes[symbol] = quote.succeeding(quotes[symbol])
                     failures.remove(symbol)
                 } else if quotes[symbol] == nil {
                     failures.insert(symbol)
