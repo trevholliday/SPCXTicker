@@ -13,6 +13,7 @@ struct RootView: View {
     let store: QuoteStore
 
     @AppStorage(TickerSettings.key) private var symbolsText = TickerSettings.defaultSymbols.joined(separator: ", ")
+    @AppStorage(TickerSettings.sharesKey) private var sharesJSON = "{}"
     @State private var scroll = ScrollController()
     @State private var isEditing = false
 
@@ -31,7 +32,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        TickerView(symbols: store.symbols, states: states, offset: scroll.offset)
+        TickerView(symbols: store.symbols, states: states, shares: TickerSettings.decodeShares(sharesJSON), offset: scroll.offset)
             .contextMenu {
                 Button("Edit Tickers…") { isEditing = true }
                 Button("Refresh Now") { Task { await store.refresh() } }
@@ -39,7 +40,7 @@ struct RootView: View {
                 Button("Quit") { NSApp.terminate(nil) }
             }
             .sheet(isPresented: $isEditing) {
-                TickerEditorView(symbolsText: $symbolsText)
+                TickerEditorView(symbolsText: $symbolsText, sharesJSON: $sharesJSON)
             }
             .task { await store.start() }
             .task(id: store.symbols.count) { await scroll.run(panelCount: store.symbols.count) }

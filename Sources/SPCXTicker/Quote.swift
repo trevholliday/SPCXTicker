@@ -45,6 +45,29 @@ struct Quote: Equatable {
         (isUp ? "+" : "-") + String(format: "%.1f", abs(changePercent)) + "%"
     }
 
+    /// Market value of a share count, from most to least precise so the renderer can pick what fits.
+    func valueTexts(shares: Double) -> [String] {
+        let value = price * shares
+        let grouped = NumberFormatter()
+        grouped.numberStyle = .decimal
+        grouped.minimumFractionDigits = 2
+        grouped.maximumFractionDigits = 2
+        let whole = NumberFormatter()
+        whole.numberStyle = .decimal
+        whole.maximumFractionDigits = 0
+        var texts = [
+            "$" + (grouped.string(from: value as NSNumber) ?? String(format: "%.2f", value)),
+            "$" + (whole.string(from: value as NSNumber) ?? String(format: "%.0f", value)),
+        ]
+        if value >= 1_000_000 {
+            texts.append("$" + String(format: "%.2fM", value / 1_000_000))
+            texts.append("$" + String(format: "%.1fM", value / 1_000_000))
+        } else if value >= 1_000 {
+            texts.append("$" + String(format: "%.1fK", value / 1_000))
+        }
+        return texts
+    }
+
     /// Returns this quote carrying the poll-to-poll direction inherited from the previous quote.
     func succeeding(_ previous: Quote?) -> Quote {
         var quote = self

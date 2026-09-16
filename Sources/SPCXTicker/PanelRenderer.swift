@@ -11,10 +11,10 @@ import SwiftUI
 enum PanelRenderer {
 
     static let width = 72
-    static let height = 32
+    static let height = 42
 
-    /// Renders a panel for a symbol in the given state.
-    static func render(symbol: String, state: PanelState) -> DotGrid {
+    /// Renders a panel for a symbol in the given state, with an optional market-value row for held shares.
+    static func render(symbol: String, state: PanelState, shares: Double = 0) -> DotGrid {
         var grid = DotGrid(width: width, height: height)
         grid.drawText(fit("$" + symbol), x: textX, y: 2, color: Palette.symbol)
 
@@ -23,6 +23,9 @@ enum PanelRenderer {
             let trend = quote.isUp ? Palette.up : Palette.down
             grid.drawText(fit(quote.percentText, fallback: quote.compactPercentText), x: textX, y: 12, color: trend)
             grid.drawText(fit(quote.priceText, fallback: quote.compactPriceText), x: textX, y: 22, color: trend)
+            if shares > 0 {
+                grid.drawText(fit(candidates: quote.valueTexts(shares: shares)), x: textX, y: 32, color: Palette.value)
+            }
             drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
             if let pollTrend = quote.pollTrend {
                 drawPollArrow(in: &grid, trend: pollTrend)
@@ -56,6 +59,7 @@ enum Palette {
     static let down = Color(red: 1.0, green: 0.2, blue: 0.2)
     static let flame = Color(red: 1.0, green: 0.6, blue: 0.1)
     static let idle = Color(white: 0.6)
+    static let value = Color(red: 0.35, green: 0.85, blue: 1.0)
     static let off = Color(white: 0.09)
 }
 
@@ -68,10 +72,13 @@ private extension PanelRenderer {
     static let textColumns = width - rocketWidth - 2 - textX - 1
 
     static func fit(_ text: String, fallback: String? = nil) -> String {
-        if DotFont.width(of: text) <= textColumns { return text }
-        if let fallback, DotFont.width(of: fallback) <= textColumns { return fallback }
+        fit(candidates: [text, fallback].compactMap { $0 })
+    }
+
+    static func fit(candidates: [String]) -> String {
+        if let text = candidates.first(where: { DotFont.width(of: $0) <= textColumns }) { return text }
         let maxCharacters = (textColumns + 1) / DotFont.advance
-        return String((fallback ?? text).prefix(maxCharacters))
+        return String((candidates.last ?? "").prefix(maxCharacters))
     }
 
     static let upArrow: [UInt8] = [0b00100, 0b01110, 0b11111, 0b00100, 0b00100]
