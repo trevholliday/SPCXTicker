@@ -11,7 +11,15 @@ A floating, always-on-top macOS widget that shows stock prices on an LED dot-mat
 - With two or more tickers, panels dwell for 15 seconds and then scroll right-to-left into the next one
 - Polls Yahoo Finance every 15 seconds; a small arrow in the bottom-right corner shows whether the price ticked up (green) or down (red) since the previous poll
 
-## Run
+## Install
+
+```sh
+./install.sh
+```
+
+Builds a release binary, wraps it in `SPCXTicker.app`, and installs it to `/Applications` so it launches from Spotlight (⌘ Space → "SPCXTicker"). Re-run after pulling changes.
+
+## Run from source
 
 ```sh
 swift build
