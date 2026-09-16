@@ -11,10 +11,17 @@ import SwiftUI
 enum PanelRenderer {
 
     static let width = 72
-    static let height = 42
+    static let baseHeight = 32
+    static let valueRowHeight = 10
 
-    /// Renders a panel for a symbol in the given state, with an optional market-value row for held shares.
-    static func render(symbol: String, state: PanelState, shares: Double = 0) -> DotGrid {
+    /// Panel height, taller when a market-value row is shown.
+    static func height(showsValueRow: Bool) -> Int {
+        baseHeight + (showsValueRow ? valueRowHeight : 0)
+    }
+
+    /// Renders a panel for a symbol in the given state; `shares` fills the value row when the panel has one.
+    static func render(symbol: String, state: PanelState, shares: Double = 0, showsValueRow: Bool = false) -> DotGrid {
+        let height = height(showsValueRow: showsValueRow)
         var grid = DotGrid(width: width, height: height)
         grid.drawText(fit("$" + symbol), x: textX, y: 2, color: Palette.symbol)
 
@@ -23,7 +30,7 @@ enum PanelRenderer {
             let trend = quote.isUp ? Palette.up : Palette.down
             grid.drawText(fit(quote.percentText, fallback: quote.compactPercentText), x: textX, y: 12, color: trend)
             grid.drawText(fit(quote.priceText, fallback: quote.compactPriceText), x: textX, y: 22, color: trend)
-            if shares > 0 {
+            if showsValueRow, shares > 0 {
                 grid.drawText(fit(candidates: quote.valueTexts(shares: shares)), x: textX, y: 32, color: Palette.value)
             }
             drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
@@ -87,7 +94,7 @@ private extension PanelRenderer {
         let rows = trend == .up ? upArrow : upArrow.reversed()
         let color = trend == .up ? Palette.up : Palette.down
         let x = width - 5 - 1
-        let y = height - rows.count - 1
+        let y = grid.height - rows.count - 1
         for (row, mask) in rows.enumerated() {
             for column in 0..<5 where mask & (0b10000 >> column) != 0 {
                 grid.set(x: x + column, y: y + row, color: color)
@@ -98,7 +105,7 @@ private extension PanelRenderer {
     static func drawRocket(in grid: inout DotGrid, angle: Angle, color: Color) {
         let masks = RocketRasterizer.masks(width: rocketWidth, height: rocketHeight, angle: angle)
         let x = width - rocketWidth - 2
-        let y = (height - rocketHeight) / 2
+        let y = (grid.height - rocketHeight) / 2
         grid.drawMask(masks.body, width: rocketWidth, x: x, y: y, color: color)
         grid.drawMask(masks.flame, width: rocketWidth, x: x, y: y, color: Palette.flame)
     }
