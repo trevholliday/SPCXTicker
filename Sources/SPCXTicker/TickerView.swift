@@ -13,6 +13,7 @@ struct TickerView: View {
     let symbols: [String]
     let states: [String: PanelRenderer.PanelState]
     let shares: [String: Double]
+    let logos: [String: LogoArt]
     let offset: Int
 
     static let pitch: CGFloat = 7
@@ -62,6 +63,6 @@ struct TickerView: View {
 
 private extension TickerView {
     func panel(for symbol: String) -> DotGrid {
-        PanelRenderer.render(symbol: symbol, state: states[symbol] ?? .loading, shares: shares[symbol] ?? 0, showsValueRow: showsValueRow)
+        PanelRenderer.render(symbol: symbol, state: states[symbol] ?? .loading, shares: shares[symbol] ?? 0, showsValueRow: showsValueRow, logo: logos[symbol])
     }
 }

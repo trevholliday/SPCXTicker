@@ -19,8 +19,12 @@ enum PanelRenderer {
         baseHeight + (showsValueRow ? valueRowHeight : 0)
     }
 
-    /// Renders a panel for a symbol in the given state; `shares` fills the value row when the panel has one.
-    static func render(symbol: String, state: PanelState, shares: Double = 0, showsValueRow: Bool = false) -> DotGrid {
+    static let artWidth = 24
+    static let artHeight = 28
+    static let logoHeight = 20
+
+    /// Renders a panel for a symbol in the given state; `shares` fills the value row when the panel has one, and `logo` replaces the rocket when present.
+    static func render(symbol: String, state: PanelState, shares: Double = 0, showsValueRow: Bool = false, logo: LogoArt? = nil) -> DotGrid {
         let height = height(showsValueRow: showsValueRow)
         var grid = DotGrid(width: width, height: height)
         grid.drawText(fit("$" + symbol), x: textX, y: 2, color: Palette.symbol)
@@ -34,20 +38,22 @@ enum PanelRenderer {
             if showsValueRow, shares > 0 {
                 grid.drawText(fit(candidates: quote.valueTexts(shares: shares)), x: textX, y: 32, color: isOpen ? Palette.value : Palette.valueDim)
             }
-            if isOpen {
+            if let logo {
+                logo.draw(into: &grid, x: artX, y: artY(in: grid), intensity: isOpen ? 1 : 0.45)
+            } else if isOpen {
                 drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
-                if let pollTrend = quote.pollTrend {
-                    drawPollArrow(in: &grid, trend: pollTrend)
-                }
             } else {
                 drawRocket(in: &grid, angle: .zero, color: Palette.idle, showsFlame: false)
             }
+            if isOpen, let pollTrend = quote.pollTrend {
+                drawPollArrow(in: &grid, trend: pollTrend)
+            }
         case .loading:
             grid.drawText("LOADING", x: textX, y: 12, color: Palette.idle)
-            drawRocket(in: &grid, angle: .zero, color: Palette.idle)
+            drawArtPlaceholder(in: &grid, logo: logo)
         case .failed:
             grid.drawText("NO DATA", x: textX, y: 12, color: Palette.idle)
-            drawRocket(in: &grid, angle: .zero, color: Palette.idle)
+            drawArtPlaceholder(in: &grid, logo: logo)
         }
         return grid
     }
@@ -82,9 +88,20 @@ enum Palette {
 
 private extension PanelRenderer {
     static let textX = 2
-    static let rocketWidth = 24
-    static let rocketHeight = 28
-    static let textColumns = width - rocketWidth - 2 - textX - 1
+    static let textColumns = width - artWidth - 2 - textX - 1
+    static let artX = width - artWidth - 2
+
+    static func artY(in grid: DotGrid) -> Int {
+        (grid.height - artHeight) / 2
+    }
+
+    static func drawArtPlaceholder(in grid: inout DotGrid, logo: LogoArt?) {
+        if let logo {
+            logo.draw(into: &grid, x: artX, y: artY(in: grid), intensity: 0.45)
+        } else {
+            drawRocket(in: &grid, angle: .zero, color: Palette.idle)
+        }
+    }
 
     static func fit(_ text: String, fallback: String? = nil) -> String {
         fit(candidates: [text, fallback].compactMap { $0 })
@@ -111,12 +128,11 @@ private extension PanelRenderer {
     }
 
     static func drawRocket(in grid: inout DotGrid, angle: Angle, color: Color, showsFlame: Bool = true) {
-        let masks = RocketRasterizer.masks(width: rocketWidth, height: rocketHeight, angle: angle)
-        let x = width - rocketWidth - 2
-        let y = (grid.height - rocketHeight) / 2
-        grid.drawMask(masks.body, width: rocketWidth, x: x, y: y, color: color)
+        let masks = RocketRasterizer.masks(width: artWidth, height: artHeight, angle: angle)
+        let y = artY(in: grid)
+        grid.drawMask(masks.body, width: artWidth, x: artX, y: y, color: color)
         if showsFlame {
-            grid.drawMask(masks.flame, width: rocketWidth, x: x, y: y, color: Palette.flame)
+            grid.drawMask(masks.flame, width: artWidth, x: artX, y: y, color: Palette.flame)
         }
     }
 }

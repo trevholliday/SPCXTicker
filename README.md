@@ -6,6 +6,7 @@ A floating, always-on-top macOS widget that shows stock prices on an LED dot-mat
 
 - Symbol, percent change, and price rendered in a 5×7 pixel font
 - A rocket on the right: green at 45° when the stock is up, red and pointing down when it's down
+- Company logos: when a recognizable logo is available for a ticker, it's converted to LED dot art in its real colors and shown in place of the rocket (wordmarks that don't survive the downsampling fall back to the rocket)
 - Any tickers you like — right-click the panel and choose **Edit Tickers…**
 - Optionally enter how many shares you hold per ticker to get a market value row under the price
 - With two or more tickers, panels dwell for 15 seconds and then scroll right-to-left into the next one

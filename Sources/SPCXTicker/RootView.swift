@@ -15,6 +15,7 @@ struct RootView: View {
     @AppStorage(TickerSettings.key) private var symbolsText = TickerSettings.defaultSymbols.joined(separator: ", ")
     @AppStorage(TickerSettings.sharesKey) private var sharesJSON = "{}"
     @State private var scroll = ScrollController()
+    @State private var logoStore = LogoStore(width: PanelRenderer.artWidth, height: PanelRenderer.logoHeight)
     @State private var isEditing = false
 
     private var symbols: [String] { TickerSettings.parse(symbolsText) }
@@ -32,7 +33,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        TickerView(symbols: store.symbols, states: states, shares: TickerSettings.decodeShares(sharesJSON), offset: scroll.offset)
+        TickerView(symbols: store.symbols, states: states, shares: TickerSettings.decodeShares(sharesJSON), logos: logoStore.logos, offset: scroll.offset)
             .contextMenu {
                 Button("Edit Tickers…") { isEditing = true }
                 Button("Refresh Now") { Task { await store.refresh() } }
@@ -46,6 +47,7 @@ struct RootView: View {
             .task(id: store.symbols.count) { await scroll.run(panelCount: store.symbols.count) }
             .onChange(of: symbols, initial: true) { _, newSymbols in
                 store.setSymbols(newSymbols)
+                logoStore.load(symbols: newSymbols)
             }
     }
 }
