@@ -23,7 +23,7 @@ final class ScrollController {
 
     // MARK: - Init
 
-    init(dwell: Duration = .seconds(3), stepInterval: Duration = .milliseconds(80)) {
+    init(dwell: Duration = .seconds(15), stepInterval: Duration = .milliseconds(80)) {
         self.dwell = dwell
         self.stepInterval = stepInterval
     }

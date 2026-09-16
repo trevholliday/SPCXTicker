@@ -22,11 +22,13 @@ final class QuoteStore {
 
     // MARK: - Init
 
-    init(symbols: [String], refreshInterval: Duration = .seconds(60)) {
+    init(symbols: [String], refreshInterval: Duration = .seconds(15)) {
         self.symbols = symbols
         self.refreshInterval = refreshInterval
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 SPCXTicker"]
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.urlCache = nil
         session = URLSession(configuration: configuration)
     }
 
@@ -104,6 +106,7 @@ private extension QuoteStore {
         components?.queryItems = [
             URLQueryItem(name: "interval", value: "1d"),
             URLQueryItem(name: "range", value: "1d"),
+            URLQueryItem(name: "_", value: String(Int(Date().timeIntervalSince1970 * 1000))),
         ]
         guard let url = components?.url else { throw FetchError.badURL }
 
