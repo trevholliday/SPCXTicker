@@ -93,8 +93,8 @@ private extension PanelRenderer {
     static func drawPollArrow(in grid: inout DotGrid, trend: Quote.PollTrend) {
         let rows = trend == .up ? upArrow : upArrow.reversed()
         let color = trend == .up ? Palette.up : Palette.down
-        let x = width - 5 - 1
-        let y = grid.height - rows.count - 1
+        let x = width - 5 - 4
+        let y = grid.height - rows.count - 4
         for (row, mask) in rows.enumerated() {
             for column in 0..<5 where mask & (0b10000 >> column) != 0 {
                 grid.set(x: x + column, y: y + row, color: color)
