@@ -8,22 +8,22 @@
 import Foundation
 import Observation
 
-/// Polls Yahoo Finance for the latest quote and publishes it to the UI.
+/// Polls Yahoo Finance for every configured symbol and publishes the results to the UI.
 @Observable
 @MainActor
 final class QuoteStore {
 
-    private(set) var quote: Quote?
-    private(set) var lastError: Error?
+    private(set) var symbols: [String]
+    private(set) var quotes: [String: Quote] = [:]
+    private(set) var failures: Set<String> = []
 
-    private let symbol: String
     private let refreshInterval: Duration
     private let session: URLSession
 
     // MARK: - Init
 
-    init(symbol: String, refreshInterval: Duration = .seconds(60)) {
-        self.symbol = symbol
+    init(symbols: [String], refreshInterval: Duration = .seconds(60)) {
+        self.symbols = symbols
         self.refreshInterval = refreshInterval
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 SPCXTicker"]
@@ -38,13 +38,31 @@ final class QuoteStore {
         }
     }
 
-    /// Fetches a single quote and updates `quote` or `lastError`.
+    /// Replaces the symbol list, drops stale results, and fetches the new symbols right away.
+    func setSymbols(_ newSymbols: [String]) {
+        guard newSymbols != symbols else { return }
+        symbols = newSymbols
+        quotes = quotes.filter { newSymbols.contains($0.key) }
+        failures = failures.intersection(newSymbols)
+        Task { await refresh() }
+    }
+
+    /// Fetches every symbol concurrently and merges the results.
     func refresh() async {
-        do {
-            quote = try await fetch()
-            lastError = nil
-        } catch {
-            lastError = error
+        let requested = symbols
+        let session = session
+        await withTaskGroup(of: (String, Quote?).self) { group in
+            for symbol in requested {
+                group.addTask { (symbol, try? await Self.fetch(symbol: symbol, session: session)) }
+            }
+            for await (symbol, quote) in group where symbols.contains(symbol) {
+                if let quote {
+                    quotes[symbol] = quote
+                    failures.remove(symbol)
+                } else if quotes[symbol] == nil {
+                    failures.insert(symbol)
+                }
+            }
         }
     }
 }
@@ -81,7 +99,7 @@ private extension QuoteStore {
 // MARK: - Private
 
 private extension QuoteStore {
-    func fetch() async throws -> Quote {
+    nonisolated static func fetch(symbol: String, session: URLSession) async throws -> Quote {
         var components = URLComponents(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(symbol)")
         components?.queryItems = [
             URLQueryItem(name: "interval", value: "1d"),
@@ -97,6 +115,6 @@ private extension QuoteStore {
         let decoded = try JSONDecoder().decode(ChartResponse.self, from: data)
         guard let meta = decoded.chart.result?.first?.meta else { throw FetchError.emptyResult }
         let previous = meta.chartPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice
-        return Quote(symbol: meta.symbol, price: meta.regularMarketPrice, previousClose: previous)
+        return Quote(symbol: symbol, price: meta.regularMarketPrice, previousClose: previous)
     }
 }

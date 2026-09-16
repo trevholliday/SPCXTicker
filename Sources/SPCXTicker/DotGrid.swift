@@ -48,6 +48,14 @@ struct DotGrid: Equatable {
         }
     }
 
+    /// Copies every lit cell of another grid with its top-left corner at the given cell.
+    mutating func draw(_ other: DotGrid, x: Int, y: Int) {
+        for (index, color) in other.cells.enumerated() {
+            guard let color else { continue }
+            set(x: x + index % other.width, y: y + index / other.width, color: color)
+        }
+    }
+
     /// Copies lit cells from a boolean mask with its top-left corner at the given cell.
     mutating func drawMask(_ mask: [Bool], width maskWidth: Int, x: Int, y: Int, color: Color) {
         for (index, lit) in mask.enumerated() where lit {

@@ -12,12 +12,11 @@ import SwiftUI
 struct SPCXTickerApp: App {
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var store = QuoteStore(symbol: "SPCX")
+    @State private var store = QuoteStore(symbols: TickerSettings.load())
 
     var body: some Scene {
         WindowGroup("SPCX") {
-            TickerView(quote: store.quote)
-                .task { await store.start() }
+            RootView(store: store)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)

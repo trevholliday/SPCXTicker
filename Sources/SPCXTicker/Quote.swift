@@ -30,4 +30,12 @@ struct Quote: Equatable {
     var percentText: String {
         (isUp ? "+" : "-") + String(format: "%.2f", abs(changePercent)) + "%"
     }
+
+    var compactPriceText: String {
+        "$" + String(format: "%.0f", price)
+    }
+
+    var compactPercentText: String {
+        (isUp ? "+" : "-") + String(format: "%.1f", abs(changePercent)) + "%"
+    }
 }
