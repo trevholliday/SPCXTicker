@@ -46,31 +46,30 @@ struct LogoArt: Equatable, Sendable {
 
 extension LogoArt {
 
-    /// Decodes PNG data and reduces it to a logo that fits the given cell size, or `nil` if it doesn't read as a logo.
+    /// Decodes PNG data, crops it to the logo's own bounds, and reduces it to fill the given cell size; `nil` if it doesn't read as a logo.
     static func make(from data: Data, width: Int, height: Int) -> LogoArt? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
 
-        let scale = min(Double(width) / Double(image.width), Double(height) / Double(image.height))
-        let fitWidth = max(1, Int((Double(image.width) * scale).rounded()))
-        let fitHeight = max(1, Int((Double(image.height) * scale).rounded()))
-        guard let samples = downsample(image, width: fitWidth, height: fitHeight) else { return nil }
+        let analysisScale = min(1, Double(analysisSize) / Double(max(image.width, image.height)))
+        let analysisWidth = max(1, Int((Double(image.width) * analysisScale).rounded()))
+        let analysisHeight = max(1, Int((Double(image.height) * analysisScale).rounded()))
+        guard let analysis = downsample(image, width: analysisWidth, height: analysisHeight),
+              let isLit = classifier(for: analysis, width: analysisWidth, height: analysisHeight),
+              let box = litBounds(of: analysis, width: analysisWidth, isLit: isLit) else { return nil }
 
-        let opaque = samples.filter { $0.alpha >= alphaThreshold }
-        guard !opaque.isEmpty else { return nil }
+        let cropRect = CGRect(
+            x: Double(box.minX) / analysisScale,
+            y: Double(box.minY) / analysisScale,
+            width: Double(box.maxX - box.minX + 1) / analysisScale,
+            height: Double(box.maxY - box.minY + 1) / analysisScale
+        ).intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        guard let cropped = image.cropping(to: cropRect) else { return nil }
 
-        let isLit: (Sample) -> Bool
-        if Double(opaque.count) >= Double(samples.count) * opaqueFillFraction {
-            let border = borderIndices(width: fitWidth, height: fitHeight).map { luminance(samples[$0].color) }
-            let backgroundLuminance = border.reduce(0, +) / Double(border.count)
-            if backgroundLuminance < 0.5 {
-                isLit = { $0.alpha >= alphaThreshold && luminance($0.color) > backgroundLuminance + contrastMargin }
-            } else {
-                isLit = { $0.alpha >= alphaThreshold && (luminance($0.color) < backgroundLuminance - contrastMargin || saturation($0.color) > 0.3) }
-            }
-        } else {
-            isLit = { $0.alpha >= alphaThreshold }
-        }
+        let scale = min(Double(width) / Double(cropped.width), Double(height) / Double(cropped.height))
+        let fitWidth = max(1, min(width, Int((Double(cropped.width) * scale).rounded())))
+        let fitHeight = max(1, min(height, Int((Double(cropped.height) * scale).rounded())))
+        guard let samples = downsample(cropped, width: fitWidth, height: fitHeight) else { return nil }
 
         let offsetX = (width - fitWidth) / 2
         let offsetY = (height - fitHeight) / 2
@@ -96,11 +95,38 @@ private extension LogoArt {
         let alpha: Double
     }
 
+    static let analysisSize = 96
     static let alphaThreshold = 0.45
     static let opaqueFillFraction = 0.9
     static let contrastMargin = 0.18
     static let minimumLitCells = 40
     static let minimumExtent = 8
+
+    static func classifier(for samples: [Sample], width: Int, height: Int) -> ((Sample) -> Bool)? {
+        let opaque = samples.filter { $0.alpha >= alphaThreshold }
+        guard !opaque.isEmpty else { return nil }
+        guard Double(opaque.count) >= Double(samples.count) * opaqueFillFraction else {
+            return { $0.alpha >= alphaThreshold }
+        }
+        let border = borderIndices(width: width, height: height).map { luminance(samples[$0].color) }
+        let backgroundLuminance = border.reduce(0, +) / Double(border.count)
+        if backgroundLuminance < 0.5 {
+            return { $0.alpha >= alphaThreshold && luminance($0.color) > backgroundLuminance + contrastMargin }
+        }
+        return { $0.alpha >= alphaThreshold && (luminance($0.color) < backgroundLuminance - contrastMargin || saturation($0.color) > 0.3) }
+    }
+
+    static func litBounds(of samples: [Sample], width: Int, isLit: (Sample) -> Bool) -> (minX: Int, minY: Int, maxX: Int, maxY: Int)? {
+        var minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
+        for (index, sample) in samples.enumerated() where isLit(sample) {
+            let x = index % width
+            let y = index / width
+            minX = min(minX, x); maxX = max(maxX, x)
+            minY = min(minY, y); maxY = max(maxY, y)
+        }
+        guard maxX >= 0 else { return nil }
+        return (minX, minY, maxX, maxY)
+    }
 
     static func borderIndices(width: Int, height: Int) -> [Int] {
         var indices: [Int] = []
