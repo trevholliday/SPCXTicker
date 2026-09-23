@@ -5,7 +5,7 @@ A floating, always-on-top macOS widget that shows stock prices on an LED dot-mat
 ![SPCX ticker widget](docs/screenshot.png)
 
 - Symbol, percent change, and price rendered in a 5×7 pixel font
-- A rocket on the right: green at 45° when the stock is up, red and pointing down when it's down
+- A rocket on the right whose angle tracks the day's change on a logarithmic scale: flat at 0%, straight up with billowing exhaust clouds at +100%, and straight down at −100%. Small moves still tilt it visibly (±1% ≈ 14°, ±5% ≈ 35°). Normal 1–2% dips leave the rocket intact; past that it trails smoke, then picks up holes (around −6%), broken fins, a sputtering flame, and fire, and near −100% it lies crashed nose-first in a pile of debris
 - Company logos: when a recognizable logo is available for a ticker, it's converted to LED dot art in its real colors and shown in place of the rocket (wordmarks that don't survive the downsampling fall back to the rocket)
 - Any tickers you like — right-click the panel and choose **Edit Tickers…**
 - Optionally enter how many shares you hold per ticker to get a market value row under the price

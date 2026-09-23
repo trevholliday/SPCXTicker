@@ -26,30 +26,28 @@ struct TickerView: View {
         PanelRenderer.height(showsValueRow: showsValueRow)
     }
 
-    private var strip: DotGrid {
-        guard symbols.count > 1 else {
-            return panel(for: symbols.first ?? TickerSettings.defaultSymbols[0])
+    private var isAnimating: Bool {
+        symbols.contains { symbol in
+            guard logos[symbol] == nil, case .quote(let quote) = states[symbol] else { return false }
+            return quote.isMarketOpen()
         }
-        var strip = DotGrid(width: symbols.count * ScrollController.panelStride, height: height)
-        for (index, symbol) in symbols.enumerated() {
-            strip.draw(panel(for: symbol), x: index * ScrollController.panelStride, y: 0)
-        }
-        return strip
     }
 
     var body: some View {
-        let strip = strip
         let height = height
         let pitch = Self.pitch
-        Canvas { context, _ in
-            let dotSize = pitch * 0.72
-            let inset = (pitch - dotSize) / 2
-            for y in 0..<height {
-                for x in 0..<PanelRenderer.width {
-                    let column = (x + offset) % strip.width
-                    let rect = CGRect(x: CGFloat(x) * pitch + inset, y: CGFloat(y) * pitch + inset, width: dotSize, height: dotSize)
-                    let color = strip.color(x: column, y: y) ?? Palette.off
-                    context.fill(Path(ellipseIn: rect), with: .color(color))
+        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: !isAnimating)) { timeline in
+            let strip = strip(time: timeline.date.timeIntervalSinceReferenceDate)
+            Canvas { context, _ in
+                let dotSize = pitch * 0.72
+                let inset = (pitch - dotSize) / 2
+                for y in 0..<height {
+                    for x in 0..<PanelRenderer.width {
+                        let column = (x + offset) % strip.width
+                        let rect = CGRect(x: CGFloat(x) * pitch + inset, y: CGFloat(y) * pitch + inset, width: dotSize, height: dotSize)
+                        let color = strip.color(x: column, y: y) ?? Palette.off
+                        context.fill(Path(ellipseIn: rect), with: .color(color))
+                    }
                 }
             }
         }
@@ -62,7 +60,18 @@ struct TickerView: View {
 // MARK: - Private
 
 private extension TickerView {
-    func panel(for symbol: String) -> DotGrid {
-        PanelRenderer.render(symbol: symbol, state: states[symbol] ?? .loading, shares: shares[symbol] ?? 0, showsValueRow: showsValueRow, logo: logos[symbol])
+    func strip(time: TimeInterval) -> DotGrid {
+        guard symbols.count > 1 else {
+            return panel(for: symbols.first ?? TickerSettings.defaultSymbols[0], time: time)
+        }
+        var strip = DotGrid(width: symbols.count * ScrollController.panelStride, height: height)
+        for (index, symbol) in symbols.enumerated() {
+            strip.draw(panel(for: symbol, time: time), x: index * ScrollController.panelStride, y: 0)
+        }
+        return strip
+    }
+
+    func panel(for symbol: String, time: TimeInterval) -> DotGrid {
+        PanelRenderer.render(symbol: symbol, state: states[symbol] ?? .loading, shares: shares[symbol] ?? 0, showsValueRow: showsValueRow, logo: logos[symbol], time: time)
     }
 }

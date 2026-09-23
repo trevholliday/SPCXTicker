@@ -23,8 +23,8 @@ enum PanelRenderer {
     static let artHeight = 28
     static let logoHeight = 20
 
-    /// Renders a panel for a symbol in the given state; `shares` fills the value row when the panel has one, and `logo` replaces the rocket when present.
-    static func render(symbol: String, state: PanelState, shares: Double = 0, showsValueRow: Bool = false, logo: LogoArt? = nil) -> DotGrid {
+    /// Renders a panel for a symbol in the given state at `time` seconds; `shares` fills the value row when the panel has one, and `logo` replaces the rocket when present.
+    static func render(symbol: String, state: PanelState, shares: Double = 0, showsValueRow: Bool = false, logo: LogoArt? = nil, time: TimeInterval = 0) -> DotGrid {
         let height = height(showsValueRow: showsValueRow)
         var grid = DotGrid(width: width, height: height)
         grid.drawText(fit("$" + symbol), x: textX, y: 2, color: Palette.symbol)
@@ -41,9 +41,9 @@ enum PanelRenderer {
             if let logo {
                 logo.draw(into: &grid, x: artX, y: artY(in: grid), intensity: isOpen ? 1 : 0.45)
             } else if isOpen {
-                drawRocket(in: &grid, angle: quote.isUp ? .degrees(45) : .degrees(180), color: trend)
+                drawRocket(in: &grid, flight: RocketRasterizer.Flight(changePercent: quote.changePercent), color: trend, time: time)
             } else {
-                drawRocket(in: &grid, angle: .zero, color: Palette.idle, showsFlame: false)
+                drawRocket(in: &grid, flight: .parked, color: Palette.idle, showsFlame: false)
             }
             if isOpen, let pollTrend = quote.pollTrend {
                 drawPollArrow(in: &grid, trend: pollTrend)
@@ -76,6 +76,7 @@ enum Palette {
     static let up = Color(red: 0.2, green: 1.0, blue: 0.35)
     static let down = Color(red: 1.0, green: 0.2, blue: 0.2)
     static let flame = Color(red: 1.0, green: 0.6, blue: 0.1)
+    static let debris = Color(red: 0.45, green: 0.3, blue: 0.2)
     static let idle = Color(white: 0.6)
     static let upDim = Color(red: 0.12, green: 0.55, blue: 0.2)
     static let downDim = Color(red: 0.6, green: 0.13, blue: 0.13)
@@ -99,7 +100,7 @@ private extension PanelRenderer {
         if let logo {
             logo.draw(into: &grid, x: artX, y: artY(in: grid), intensity: 0.45)
         } else {
-            drawRocket(in: &grid, angle: .zero, color: Palette.idle)
+            drawRocket(in: &grid, flight: .parked, color: Palette.idle)
         }
     }
 
@@ -127,12 +128,16 @@ private extension PanelRenderer {
         }
     }
 
-    static func drawRocket(in grid: inout DotGrid, angle: Angle, color: Color, showsFlame: Bool = true) {
-        let masks = RocketRasterizer.masks(width: artWidth, height: artHeight, angle: angle)
-        let y = artY(in: grid)
-        grid.drawMask(masks.body, width: artWidth, x: artX, y: y, color: color)
+    static func drawRocket(in grid: inout DotGrid, flight: RocketRasterizer.Flight, color: Color, time: TimeInterval = 0, showsFlame: Bool = true) {
+        let masks = RocketRasterizer.masks(width: artWidth, height: grid.height, flight: flight, time: time)
+        grid.drawMask(masks.debris, width: artWidth, x: artX, y: 0, color: Palette.debris)
+        for (index, level) in masks.clouds.enumerated() where level > 0 {
+            let white = flight.damage > 0 ? 0.12 + 0.4 * level : 0.3 + 0.7 * level
+            grid.set(x: artX + index % artWidth, y: index / artWidth, color: Color(white: white))
+        }
+        grid.drawMask(masks.body, width: artWidth, x: artX, y: 0, color: color)
         if showsFlame {
-            grid.drawMask(masks.flame, width: artWidth, x: artX, y: y, color: Palette.flame)
+            grid.drawMask(masks.flame, width: artWidth, x: artX, y: 0, color: Palette.flame)
         }
     }
 }
