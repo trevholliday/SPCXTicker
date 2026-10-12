@@ -56,7 +56,8 @@ extension RocketRasterizer {
 
         static let parked = Flight(angle: .zero, thrust: 0, damage: 0)
         static let fullScalePercent = 100.0
-        static let calmPercent = 2.0
+        static let calmPercent = 5.0
+        static let angleStep = 30.0
 
         var isCrashed: Bool { damage >= 0.97 }
     }
@@ -67,7 +68,7 @@ extension RocketRasterizer.Flight {
         let magnitude = min(log1p(abs(changePercent)) / log1p(Self.fullScalePercent), 1)
         let level = changePercent < 0 ? -magnitude : magnitude
         let drop = max(-changePercent - Self.calmPercent, 0) / (Self.fullScalePercent - Self.calmPercent)
-        angle = .degrees(90 - 90 * level)
+        angle = .degrees(((90 - 90 * level) / Self.angleStep).rounded() * Self.angleStep)
         thrust = max(level, 0)
         damage = min(drop.squareRoot(), 1)
     }
